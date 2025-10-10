@@ -219,12 +219,13 @@ async def import_tasks(userId: str, file: UploadFile = File(...)):
 
 
 @api_router.get("/tasks/upcoming/today")
-async def get_upcoming_tasks():
+async def get_upcoming_tasks(userId: str):
     """Get tasks for today for notifications"""
     today = datetime.now().date().isoformat()
     
     # Get today's tasks and weekly recurring tasks
     tasks = await db.tasks.find({
+        "userId": userId,
         "$or": [
             {"date": today, "completed": False},
             {"frequency": "daily", "completed": False}
