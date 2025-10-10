@@ -31,6 +31,7 @@ api_router = APIRouter(prefix="/api")
 # Define Models
 class Task(BaseModel):
     id: Optional[str] = None
+    userId: str
     name: str
     date: str  # ISO format date string
     frequency: str  # "daily" or "weekly"
@@ -42,6 +43,7 @@ class Task(BaseModel):
     updatedAt: Optional[datetime] = None
 
 class TaskCreate(BaseModel):
+    userId: str
     name: str
     date: str
     frequency: str
