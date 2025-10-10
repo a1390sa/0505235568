@@ -166,7 +166,7 @@ async def delete_task(task_id: str):
 
 
 @api_router.post("/tasks/import")
-async def import_tasks(file: UploadFile = File(...)):
+async def import_tasks(userId: str, file: UploadFile = File(...)):
     try:
         # Read the uploaded file
         contents = await file.read()
@@ -186,6 +186,7 @@ async def import_tasks(file: UploadFile = File(...)):
                     continue
                 
                 task_dict = {
+                    "userId": userId,
                     "name": str(row[0]) if row[0] else "",
                     "date": str(row[1]) if row[1] else datetime.now().isoformat(),
                     "frequency": str(row[2]).lower() if row[2] else "daily",
