@@ -107,39 +107,48 @@ user_problem_statement: "بناء تطبيق مذكرة للخطة التنفي�
 backend:
   - task: "CRUD APIs للمهام"
     implemented: true
-    working: "NA"
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "تم إنشاء APIs: GET/POST/PUT/DELETE /api/tasks مع فلترة حسب frequency, priority, completed"
+        - working: true
+          agent: "testing"
+          comment: "✅ جميع CRUD operations تعمل بشكل صحيح: إنشاء المهام (3 test cases), استرجاع جميع المهام, فلترة حسب frequency/priority/completed, استرجاع مهمة واحدة, تحديث المهام (الاسم، الحالة، الأولوية), حذف المهام. تم اختبار validation و error handling للـ IDs غير صحيحة. جميع الاختبارات نجحت (24/24)"
   
   - task: "Excel Import API"
     implemented: true
-    working: "NA"
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "تم إنشاء POST /api/tasks/import لاستيراد ملفات Excel"
+        - working: true
+          agent: "testing"
+          comment: "✅ Excel Import API يعمل بشكل ممتاز: تم اختبار استيراد ملف Excel مع 4 مهام بنجاح، تم التحقق من رفض الملفات غير صحيحة، API يتعامل مع الأعمدة المطلوبة (name, date, frequency, time) ويضع قيم افتراضية للحقول المفقودة"
   
   - task: "Upcoming Tasks API"
     implemented: true
-    working: "NA"
+    working: true
     file: "server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
           comment: "تم إنشاء GET /api/tasks/upcoming/today للحصول على المهام القادمة للتذكيرات"
+        - working: true
+          agent: "testing"
+          comment: "✅ Upcoming Tasks API يعمل بشكل صحيح: يسترجع المهام اليومية وغير المكتملة للتذكيرات، تم اختبار الاستجابة وتنسيق البيانات"
 
 frontend:
   - task: "الشاشة الرئيسية مع قائمة المهام"
