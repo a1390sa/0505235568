@@ -51,7 +51,9 @@ export default function HomeScreen() {
   const [filter, setFilter] = useState<'all' | 'daily' | 'weekly'>('all');
 
   useEffect(() => {
-    requestNotificationPermissions();
+    if (Platform.OS !== 'web') {
+      requestNotificationPermissions();
+    }
     fetchTasks();
   }, [filter, userId]);
 
