@@ -8,16 +8,20 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useAuth } from '../contexts/AuthContext';
+import * as Notifications from 'expo-notifications';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 interface Task {
   id: string;
+  userId: string;
   name: string;
   date: string;
   frequency: string;
@@ -27,22 +31,49 @@ interface Task {
   completed: boolean;
 }
 
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
 export default function HomeScreen() {
   const router = useRouter();
+  const { userId, logout } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'daily' | 'weekly'>('all');
 
+  useEffect(() => {
+    requestNotificationPermissions();
+    fetchTasks();
+  }, [filter, userId]);
+
+  const requestNotificationPermissions = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('تنبيه', 'لن تتلقى إشعارات للمهام بدون إذن الإشعارات');
+    }
+  };
+
   const fetchTasks = async () => {
+    if (!userId) return;
+    
     try {
       const url = filter === 'all' 
-        ? `${BACKEND_URL}/api/tasks`
-        : `${BACKEND_URL}/api/tasks?frequency=${filter}`;
+        ? `${BACKEND_URL}/api/tasks?userId=${userId}`
+        : `${BACKEND_URL}/api/tasks?userId=${userId}&frequency=${filter}`;
       
       const response = await fetch(url);
       const data = await response.json();
       setTasks(data);
+      
+      // Schedule notifications for tasks
+      scheduleNotifications(data);
     } catch (error) {
       console.error('Error fetching tasks:', error);
     } finally {
@@ -51,14 +82,57 @@ export default function HomeScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchTasks();
-  }, [filter]);
+  const scheduleNotifications = async (tasks: Task[]) => {
+    // Cancel all existing notifications
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    
+    // Schedule new notifications
+    for (const task of tasks) {
+      if (!task.completed) {
+        try {
+          const [hours, minutes] = task.time.split(':');
+          const taskDate = new Date(task.date);
+          taskDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          
+          // Only schedule if task is in the future
+          if (taskDate > new Date()) {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: 'تذكير بالمهمة',
+                body: task.name,
+                data: { taskId: task.id },
+              },
+              trigger: taskDate,
+            });
+          }
+          
+          // For daily tasks, also schedule for tomorrow
+          if (task.frequency === 'daily') {
+            const tomorrow = new Date(taskDate);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            if (tomorrow > new Date()) {
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: 'تذكير بالمهمة اليومية',
+                  body: task.name,
+                  data: { taskId: task.id },
+                },
+                trigger: tomorrow,
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error scheduling notification:', error);
+        }
+      }
+    }
+  };
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchTasks();
-  }, [filter]);
+  }, [filter, userId]);
 
   const toggleTaskComplete = async (taskId: string, completed: boolean) => {
     try {
@@ -71,6 +145,27 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Error updating task:', error);
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'تسجيل الخروج',
+      'هل أنت متأكد من تسجيل الخروج؟',
+      [
+        {
+          text: 'إلغاء',
+          style: 'cancel',
+        },
+        {
+          text: 'تسجيل خروج',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/login');
+          },
+        },
+      ]
+    );
   };
 
   const getPriorityColor = (priority: string) => {
@@ -143,13 +238,24 @@ export default function HomeScreen() {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>مذكرة الخطة التنفيذية</Text>
-        <TouchableOpacity
-          style={styles.importButton}
-          onPress={() => router.push('/import')}
-        >
-          <Ionicons name="cloud-upload-outline" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>مذكرة الخطة التنفيذية</Text>
+          <Text style={styles.headerSubtitle}>مرحباً، {userId}</Text>
+        </View>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.importButton}
+            onPress={() => router.push('/import')}
+          >
+            <Ionicons name="cloud-upload-outline" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={24} color="#EF5350" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filter Tabs */}
@@ -232,12 +338,29 @@ const styles = StyleSheet.create({
     borderBottomColor: '#D1DCE5',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1A3A4A',
   },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B8FA3',
+    marginTop: 2,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   importButton: {
     backgroundColor: '#2E7D8F',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutButton: {
+    backgroundColor: '#FFE8E7',
     width: 44,
     height: 44,
     borderRadius: 22,
