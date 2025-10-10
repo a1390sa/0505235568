@@ -83,49 +83,59 @@ export default function HomeScreen() {
   };
 
   const scheduleNotifications = async (tasks: Task[]) => {
-    // Cancel all existing notifications
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    // Skip notifications on web platform
+    if (Platform.OS === 'web') {
+      console.log('Notifications not supported on web platform');
+      return;
+    }
     
-    // Schedule new notifications
-    for (const task of tasks) {
-      if (!task.completed) {
-        try {
-          const [hours, minutes] = task.time.split(':');
-          const taskDate = new Date(task.date);
-          taskDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-          
-          // Only schedule if task is in the future
-          if (taskDate > new Date()) {
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: 'تذكير بالمهمة',
-                body: task.name,
-                data: { taskId: task.id },
-              },
-              trigger: taskDate,
-            });
-          }
-          
-          // For daily tasks, also schedule for tomorrow
-          if (task.frequency === 'daily') {
-            const tomorrow = new Date(taskDate);
-            tomorrow.setDate(tomorrow.getDate() + 1);
+    try {
+      // Cancel all existing notifications
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      
+      // Schedule new notifications
+      for (const task of tasks) {
+        if (!task.completed) {
+          try {
+            const [hours, minutes] = task.time.split(':');
+            const taskDate = new Date(task.date);
+            taskDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
             
-            if (tomorrow > new Date()) {
+            // Only schedule if task is in the future
+            if (taskDate > new Date()) {
               await Notifications.scheduleNotificationAsync({
                 content: {
-                  title: 'تذكير بالمهمة اليومية',
+                  title: 'تذكير بالمهمة',
                   body: task.name,
                   data: { taskId: task.id },
                 },
-                trigger: tomorrow,
+                trigger: taskDate,
               });
             }
+            
+            // For daily tasks, also schedule for tomorrow
+            if (task.frequency === 'daily') {
+              const tomorrow = new Date(taskDate);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              
+              if (tomorrow > new Date()) {
+                await Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: 'تذكير بالمهمة اليومية',
+                    body: task.name,
+                    data: { taskId: task.id },
+                  },
+                  trigger: tomorrow,
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error scheduling notification:', error);
           }
-        } catch (error) {
-          console.error('Error scheduling notification:', error);
         }
       }
+    } catch (error) {
+      console.error('Error with notifications:', error);
     }
   };
 
