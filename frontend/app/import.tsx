@@ -13,11 +13,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import { StatusBar } from 'expo-status-bar';
+import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function ImportScreen() {
   const router = useRouter();
+  const { userId } = useAuth();
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
 
@@ -56,7 +58,7 @@ export default function ImportScreen() {
 
       formData.append('file', fileToUpload);
 
-      const response = await fetch(`${BACKEND_URL}/api/tasks/import`, {
+      const response = await fetch(`${BACKEND_URL}/api/tasks/import?userId=${userId}`, {
         method: 'POST',
         body: formData,
         headers: {

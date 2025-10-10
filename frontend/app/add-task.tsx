@@ -14,11 +14,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useAuth } from '../contexts/AuthContext';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function AddTaskScreen() {
   const router = useRouter();
+  const { userId } = useAuth();
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
   const [frequency, setFrequency] = useState<'daily' | 'weekly'>('daily');
@@ -51,6 +53,7 @@ export default function AddTaskScreen() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          userId,
           name,
           date,
           frequency,
