@@ -99,11 +99,12 @@ async def create_task(task: TaskCreate):
 
 @api_router.get("/tasks", response_model=List[dict])
 async def get_tasks(
+    userId: str,
     frequency: Optional[str] = None,
     completed: Optional[bool] = None,
     priority: Optional[str] = None
 ):
-    query = {}
+    query = {"userId": userId}
     
     if frequency:
         query["frequency"] = frequency
