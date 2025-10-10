@@ -101,3 +101,110 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "بناء تطبيق مذكرة للخطة التنفيذية - استيراد Excel، تذكير المهام اليومية والأسبوعية، تعديل/حذف، تصنيفات وأولويات، إشعارات"
+
+backend:
+  - task: "CRUD APIs للمهام"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء APIs: GET/POST/PUT/DELETE /api/tasks مع فلترة حسب frequency, priority, completed"
+  
+  - task: "Excel Import API"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء POST /api/tasks/import لاستيراد ملفات Excel"
+  
+  - task: "Upcoming Tasks API"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء GET /api/tasks/upcoming/today للحصول على المهام القادمة للتذكيرات"
+
+frontend:
+  - task: "الشاشة الرئيسية مع قائمة المهام"
+    implemented: true
+    working: "NA"
+    file: "app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء الشاشة الرئيسية مع عرض المهام، فلترة (كل/يومي/أسبوعي), وضع علامة إكتمال"
+  
+  - task: "شاشة استيراد Excel"
+    implemented: true
+    working: "NA"
+    file: "app/import.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء شاشة استيراد Excel مع DocumentPicker"
+  
+  - task: "شاشة إضافة مهمة"
+    implemented: true
+    working: "NA"
+    file: "app/add-task.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء نموذج إضافة مهمة جديدة مع كل الحقول المطلوبة"
+  
+  - task: "شاشة تفاصيل وتعديل المهمة"
+    implemented: true
+    working: "NA"
+    file: "app/task/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء شاشة عرض وتعديل وحذف المهمة"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "CRUD APIs للمهام"
+    - "Excel Import API"
+    - "Upcoming Tasks API"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: "تم إنشاء جميع Backend APIs و Frontend screens الأساسية. يرجى اختبار جميع APIs بالتفصيل. تأكد من: 1) CRUD operations 2) Excel import 3) Filtering by frequency/priority 4) Task completion toggle"
