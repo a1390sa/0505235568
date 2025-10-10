@@ -58,11 +58,7 @@ export default function HomeScreen() {
   }, [filter, userId]);
 
   const requestNotificationPermissions = async () => {
-    // Skip notifications on web platform
-    if (Platform.OS === 'web') {
-      console.log('Notifications not supported on web platform');
-      return;
-    }
+    if (Platform.OS === 'web') return;
     
     try {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -70,7 +66,7 @@ export default function HomeScreen() {
         Alert.alert('تنبيه', 'لن تتلقى إشعارات للمهام بدون إذن الإشعارات');
       }
     } catch (error) {
-      console.error('Error requesting notification permissions:', error);
+      console.error('Error requesting permissions:', error);
     }
   };
 
