@@ -65,6 +65,7 @@ class TaskUpdate(BaseModel):
 def task_helper(task) -> dict:
     return {
         "id": str(task["_id"]),
+        "userId": task.get("userId"),
         "name": task.get("name"),
         "date": task.get("date"),
         "frequency": task.get("frequency"),
