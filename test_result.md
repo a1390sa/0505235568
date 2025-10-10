@@ -211,8 +211,56 @@ test_plan:
   test_all: false
   test_priority: "high_first"
 
+backend:
+  - task: "إضافة userId لجميع APIs"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إضافة userId لجميع نماذج وAPIs. كل مستخدم له مهامه الخاصة الآن"
+
+frontend:
+  - task: "إضافة تسجيل الدخول المحلي"
+    implemented: true
+    working: "NA"
+    file: "app/login.tsx, contexts/AuthContext.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إنشاء شاشة login + AuthContext مع AsyncStorage"
+
+  - task: "إضافة Local Notifications"
+    implemented: true
+    working: "NA"
+    file: "app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم إضافة expo-notifications مع جدولة تلقائية للمهام"
+
+  - task: "تحديث جميع الشاشات لاستخدام userId"
+    implemented: true
+    working: "NA"
+    file: "app/index.tsx, app/add-task.tsx, app/import.tsx, app/task/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "تم تحديث جميع API calls لإرسال userId"
+
 agent_communication:
     - agent: "main"
-      message: "تم إنشاء جميع Backend APIs و Frontend screens الأساسية. يرجى اختبار جميع APIs بالتفصيل. تأكد من: 1) CRUD operations 2) Excel import 3) Filtering by frequency/priority 4) Task completion toggle"
-    - agent: "testing"
-      message: "🎉 جميع Backend APIs تم اختبارها بنجاح! تم إنشاء backend_test.py واختبار 24 حالة اختبار مختلفة. جميع الوظائف الأساسية تعمل: CRUD operations, Excel import, filtering, validation, error handling. Backend جاهز للاستخدام. يمكن للـ main agent الآن التركيز على Frontend أو إنهاء المشروع."
+      message: "تم إضافة تسجيل دخول محلي + ربط المهام بالمستخدم + إشعارات محلية. يرجى اختبار: 1) Login flow 2) Creating tasks with userId 3) Viewing user-specific tasks 4) Excel import with userId 5) Notifications scheduling 6) Logout"
