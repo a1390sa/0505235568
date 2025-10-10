@@ -54,9 +54,19 @@ export default function HomeScreen() {
   }, [filter, userId]);
 
   const requestNotificationPermissions = async () => {
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('تنبيه', 'لن تتلقى إشعارات للمهام بدون إذن الإشعارات');
+    // Skip notifications on web platform
+    if (Platform.OS === 'web') {
+      console.log('Notifications not supported on web platform');
+      return;
+    }
+    
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('تنبيه', 'لن تتلقى إشعارات للمهام بدون إذن الإشعارات');
+      }
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
     }
   };
 
