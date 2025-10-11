@@ -56,12 +56,14 @@ class TaskCreate(BaseModel):
     priority: str = "medium"
 
 class TaskUpdate(BaseModel):
+    field: Optional[str] = None
     name: Optional[str] = None
-    date: Optional[str] = None
-    frequency: Optional[str] = None
-    time: Optional[str] = None
+    description: Optional[str] = None
+    implementation_method: Optional[str] = None
+    work_type: Optional[str] = None
+    duration_days: Optional[int] = None
+    start_date: Optional[str] = None
     priority: Optional[str] = None
-    category: Optional[str] = None
     completed: Optional[bool] = None
 
 
