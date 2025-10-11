@@ -187,28 +187,37 @@ async def import_tasks(userId: str, file: UploadFile = File(...)):
         errors = []
         
         # Skip header row and process data rows
+        # Columns: المجال، المهمة، الوصف، آلية التنفيذ، مكتبي/ميداني، عدد الأيام، تاريخ البداية
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
             try:
-                # Expecting columns: name, date, frequency, time
-                if not row[0]:  # Skip empty rows
+                # Skip empty rows
+                if not row[0] and not row[1]:
                     continue
+                
+                # Parse work_type
+                work_type_raw = str(row[4]).strip() if row[4] else "مكتبي"
+                work_type = "field" if "ميداني" in work_type_raw else "office"
+                
+                # Parse duration_days
+                try:
+                    duration_days = int(row[5]) if row[5] else 1
+                except (ValueError, TypeError):
+                    duration_days = 1
                 
                 task_dict = {
                     "userId": userId,
-                    "name": str(row[0]) if row[0] else "",
-                    "date": str(row[1]) if row[1] else datetime.now().isoformat(),
-                    "frequency": str(row[2]).lower() if row[2] else "daily",
-                    "time": str(row[3]) if row[3] else "09:00",
+                    "field": str(row[0]) if row[0] else "عام",
+                    "name": str(row[1]) if row[1] else "",
+                    "description": str(row[2]) if row[2] else "",
+                    "implementation_method": str(row[3]) if row[3] else "",
+                    "work_type": work_type,
+                    "duration_days": duration_days,
+                    "start_date": str(row[6]) if row[6] else datetime.now().date().isoformat(),
                     "priority": "medium",
-                    "category": "general",
                     "completed": False,
                     "createdAt": datetime.utcnow(),
                     "updatedAt": datetime.utcnow(),
                 }
-                
-                # Validate frequency
-                if task_dict["frequency"] not in ["daily", "weekly"]:
-                    task_dict["frequency"] = "daily"
                 
                 await db.tasks.insert_one(task_dict)
                 tasks_imported += 1
