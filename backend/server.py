@@ -189,33 +189,86 @@ async def import_tasks(userId: str, file: UploadFile = File(...)):
         tasks_imported = 0
         errors = []
         
-        # Skip header row and process data rows
-        # Columns: المجال، المهمة، الوصف، آلية التنفيذ، مكتبي/ميداني، عدد الأيام، تاريخ البداية
+        # Find column indices from header row
+        header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
+        
+        # Map column names to indices
+        col_map = {}
+        for idx, header in enumerate(header_row):
+            if header:
+                header_str = str(header).strip()
+                if "المجال" in header_str:
+                    col_map["field"] = idx
+                elif "المهمة" in header_str or "البرنامج" in header_str:
+                    col_map["name"] = idx
+                elif "الوصف" in header_str:
+                    col_map["description"] = idx
+                elif "آلية" in header_str or "التنفيذ" in header_str and "آلية" not in col_map:
+                    col_map["implementation_method"] = idx
+                elif "مكتبي" in header_str or "ميداني" in header_str:
+                    col_map["work_type"] = idx
+                elif "الأيام" in header_str or "عدد" in header_str:
+                    col_map["duration_days"] = idx
+                elif "البداية" in header_str or "تاريخ" in header_str:
+                    col_map["start_date"] = idx
+        
+        # Process data rows
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
             try:
+                # Get name field (required)
+                name_idx = col_map.get("name", 12)  # Default to column 12
+                task_name = str(row[name_idx]).strip() if row[name_idx] else ""
+                
                 # Skip empty rows
-                if not row[0] and not row[1]:
+                if not task_name:
                     continue
                 
+                # Get other fields with safe defaults
+                field_idx = col_map.get("field", 11)
+                desc_idx = col_map.get("description", 13)
+                impl_idx = col_map.get("implementation_method", 14)
+                work_idx = col_map.get("work_type", 15)
+                days_idx = col_map.get("duration_days", 16)
+                date_idx = col_map.get("start_date", 17)
+                
                 # Parse work_type
-                work_type_raw = str(row[4]).strip() if row[4] else "مكتبي"
+                work_type_raw = str(row[work_idx]).strip() if len(row) > work_idx and row[work_idx] else "مكتبي"
                 work_type = "field" if "ميداني" in work_type_raw else "office"
                 
                 # Parse duration_days
-                try:
-                    duration_days = int(row[5]) if row[5] else 1
-                except (ValueError, TypeError):
-                    duration_days = 1
+                duration_days = 1
+                if len(row) > days_idx and row[days_idx]:
+                    days_str = str(row[days_idx])
+                    # Extract numbers from string like "4 أيام" or "يوم واحد"
+                    import re
+                    numbers = re.findall(r'\d+', days_str)
+                    if numbers:
+                        duration_days = int(numbers[0])
+                    elif "واحد" in days_str:
+                        duration_days = 1
+                
+                # Parse start_date
+                start_date_val = datetime.now().date().isoformat()
+                if len(row) > date_idx and row[date_idx]:
+                    date_str = str(row[date_idx])
+                    # Handle both formats: 1447-4-29 and 2025-07-20
+                    try:
+                        if isinstance(row[date_idx], datetime):
+                            start_date_val = row[date_idx].date().isoformat()
+                        else:
+                            start_date_val = date_str
+                    except:
+                        pass
                 
                 task_dict = {
                     "userId": userId,
-                    "field": str(row[0]) if row[0] else "عام",
-                    "name": str(row[1]) if row[1] else "",
-                    "description": str(row[2]) if row[2] else "",
-                    "implementation_method": str(row[3]) if row[3] else "",
+                    "field": str(row[field_idx]).strip() if len(row) > field_idx and row[field_idx] else "عام",
+                    "name": task_name,
+                    "description": str(row[desc_idx]).strip() if len(row) > desc_idx and row[desc_idx] else "",
+                    "implementation_method": str(row[impl_idx]).strip() if len(row) > impl_idx and row[impl_idx] else "",
                     "work_type": work_type,
                     "duration_days": duration_days,
-                    "start_date": str(row[6]) if row[6] else datetime.now().date().isoformat(),
+                    "start_date": start_date_val,
                     "priority": "medium",
                     "completed": False,
                     "createdAt": datetime.utcnow(),
