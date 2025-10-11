@@ -217,10 +217,10 @@ async def import_tasks(userId: str, file: UploadFile = File(...)):
             try:
                 # Get name field (required)
                 name_idx = col_map.get("name", 12)  # Default to column 12
-                task_name = str(row[name_idx]).strip() if row[name_idx] else ""
+                task_name = str(row[name_idx]).strip() if len(row) > name_idx and row[name_idx] else ""
                 
-                # Skip empty rows
-                if not task_name:
+                # Skip empty rows or rows with very short names (likely numbers or invalid data)
+                if not task_name or len(task_name) < 3 or task_name.isdigit():
                     continue
                 
                 # Get other fields with safe defaults
