@@ -108,20 +108,23 @@ async def create_task(task: TaskCreate):
 @api_router.get("/tasks", response_model=List[dict])
 async def get_tasks(
     userId: str,
-    frequency: Optional[str] = None,
+    work_type: Optional[str] = None,
+    field: Optional[str] = None,
     completed: Optional[bool] = None,
     priority: Optional[str] = None
 ):
     query = {"userId": userId}
     
-    if frequency:
-        query["frequency"] = frequency
+    if work_type:
+        query["work_type"] = work_type
+    if field:
+        query["field"] = field
     if completed is not None:
         query["completed"] = completed
     if priority:
         query["priority"] = priority
     
-    tasks = await db.tasks.find(query).sort("date", 1).to_list(1000)
+    tasks = await db.tasks.find(query).sort("start_date", 1).to_list(1000)
     return [task_helper(task) for task in tasks]
 
 
