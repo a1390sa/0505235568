@@ -149,25 +149,43 @@ export default function ImportScreen() {
           <View style={styles.instructionItem}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.instructionText}>
-              العمود الأول: اسم المهمة (نص)
+              العمود 1: المجال (مثال: التسويق، الموارد البشرية)
             </Text>
           </View>
           <View style={styles.instructionItem}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.instructionText}>
-              العمود الثاني: التاريخ (YYYY-MM-DD)
+              العمود 2: المهمة (اسم المهمة)
             </Text>
           </View>
           <View style={styles.instructionItem}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.instructionText}>
-              العمود الثالث: التكرار (daily أو weekly)
+              العمود 3: الوصف (وصف تفصيلي للمهمة)
             </Text>
           </View>
           <View style={styles.instructionItem}>
             <Text style={styles.bullet}>•</Text>
             <Text style={styles.instructionText}>
-              العمود الرابع: الوقت (HH:MM مثل 09:00)
+              العمود 4: آلية التنفيذ (كيفية تنفيذ المهمة)
+            </Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.instructionText}>
+              العمود 5: مكتبي/ميداني (مكتبي أو ميداني)
+            </Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.instructionText}>
+              العمود 6: عدد الأيام (رقم - عدد أيام المهمة)
+            </Text>
+          </View>
+          <View style={styles.instructionItem}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.instructionText}>
+              العمود 7: تاريخ البداية (YYYY-MM-DD مثل 2025-07-20)
             </Text>
           </View>
         </View>
