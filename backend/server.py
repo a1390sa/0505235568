@@ -238,19 +238,17 @@ async def import_tasks(userId: str, file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Failed to import file: {str(e)}")
 
 
-@api_router.get("/tasks/upcoming/today")
+@api_router.get("/tasks/upcoming")
 async def get_upcoming_tasks(userId: str):
-    """Get tasks for today for notifications"""
+    """Get upcoming tasks starting soon"""
     today = datetime.now().date().isoformat()
     
-    # Get today's tasks and weekly recurring tasks
+    # Get tasks starting today or later that are not completed
     tasks = await db.tasks.find({
         "userId": userId,
-        "$or": [
-            {"date": today, "completed": False},
-            {"frequency": "daily", "completed": False}
-        ]
-    }).to_list(100)
+        "start_date": {"$gte": today},
+        "completed": False
+    }).sort("start_date", 1).to_list(100)
     
     return [task_helper(task) for task in tasks]
 
