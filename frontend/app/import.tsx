@@ -112,7 +112,7 @@ export default function ImportScreen() {
         <Text style={styles.title}>استيراد المهام</Text>
         <Text style={styles.description}>
           قم برفع ملف Excel يحتوي على المهام{'\n'}
-          الأعمدة المطلوبة: اسم المهمة، التاريخ، يومي/أسبوعي، الوقت
+          الأعمدة المطلوبة (7 أعمدة)
         </Text>
 
         {fileName && (
