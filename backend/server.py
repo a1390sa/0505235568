@@ -32,24 +32,28 @@ api_router = APIRouter(prefix="/api")
 class Task(BaseModel):
     id: Optional[str] = None
     userId: str
-    name: str
-    date: str  # ISO format date string
-    frequency: str  # "daily" or "weekly"
-    time: str  # HH:MM format
+    field: str  # المجال
+    name: str  # المهمة
+    description: str = ""  # الوصف
+    implementation_method: str = ""  # آلية التنفيذ
+    work_type: str = "office"  # مكتبي/ميداني (office/field)
+    duration_days: int = 1  # عدد الأيام
+    start_date: str  # تاريخ البداية
     priority: str = "medium"  # "high", "medium", "low"
-    category: str = "general"
     completed: bool = False
     createdAt: Optional[datetime] = None
     updatedAt: Optional[datetime] = None
 
 class TaskCreate(BaseModel):
     userId: str
+    field: str
     name: str
-    date: str
-    frequency: str
-    time: str
+    description: str = ""
+    implementation_method: str = ""
+    work_type: str = "office"
+    duration_days: int = 1
+    start_date: str
     priority: str = "medium"
-    category: str = "general"
 
 class TaskUpdate(BaseModel):
     name: Optional[str] = None
