@@ -190,27 +190,30 @@ async def import_tasks(userId: str, file: UploadFile = File(...)):
         errors = []
         
         # Find column indices from header row
-        header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
+        header_row = list(sheet.iter_rows(min_row=1, max_row=1, values_only=True))[0]
         
         # Map column names to indices
         col_map = {}
         for idx, header in enumerate(header_row):
             if header:
-                header_str = str(header).strip()
-                if "المجال" in header_str:
+                header_str = str(header).strip().lower()
+                if "مجال" in header_str:
                     col_map["field"] = idx
-                elif "المهمة" in header_str or "البرنامج" in header_str:
+                elif "مهمة" in header_str or "برنامج" in header_str:
                     col_map["name"] = idx
-                elif "الوصف" in header_str:
+                elif "وصف" in header_str:
                     col_map["description"] = idx
-                elif "آلية" in header_str or "التنفيذ" in header_str and "آلية" not in col_map:
+                elif "آلية" in header_str and "تنفيذ" in header_str:
                     col_map["implementation_method"] = idx
                 elif "مكتبي" in header_str or "ميداني" in header_str:
                     col_map["work_type"] = idx
-                elif "الأيام" in header_str or "عدد" in header_str:
+                elif "أيام" in header_str and "عدد" in header_str:
                     col_map["duration_days"] = idx
-                elif "البداية" in header_str or "تاريخ" in header_str:
+                elif "تاريخ" in header_str and "بداية" in header_str:
                     col_map["start_date"] = idx
+        
+        # Log found columns for debugging
+        logger.info(f"Detected columns: {col_map}")
         
         # Process data rows
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
