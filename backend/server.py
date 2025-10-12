@@ -311,6 +311,68 @@ async def get_upcoming_tasks(userId: str):
     return [task_helper(task) for task in tasks]
 
 
+@api_router.get("/download/template")
+async def download_template():
+    """Download Excel template file"""
+    from fastapi.responses import FileResponse
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    
+    # Create template file
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "نموذج المهام"
+    
+    headers = ["المجال", "المهمة", "الوصف", "آلية التنفيذ", "مكتبي/ميداني", "عدد الأيام", "تاريخ البداية"]
+    
+    header_fill = PatternFill(start_color="2E7D8F", end_color="2E7D8F", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    examples = [
+        ["التعليم والتدريب", "ورشة تدريبية للموظفين", "ورشة عن مهارات التواصل الفعال", "تدريب حضوري مع مدرب معتمد", "ميداني", 3, "2025-07-15"],
+        ["التسويق", "حملة إعلانية على وسائل التواصل", "حملة تسويقية للمنتج الجديد", "تصميم محتوى ونشره على المنصات", "مكتبي", 14, "2025-07-20"],
+        ["الموارد البشرية", "اجتماع فريق العمل الشهري", "مناقشة الإنجازات والخطط القادمة", "اجتماع افتراضي عبر Zoom", "مكتبي", 1, "2025-07-25"],
+    ]
+    
+    for row_num, example in enumerate(examples, 2):
+        for col_num, value in enumerate(example, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.border = border
+            cell.alignment = Alignment(horizontal='right' if col_num < 7 else 'center', vertical='center')
+    
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['C'].width = 45
+    ws.column_dimensions['D'].width = 40
+    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 18
+    
+    template_path = "/tmp/template_download.xlsx"
+    wb.save(template_path)
+    
+    return FileResponse(
+        template_path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename="نموذج_استيراد_المهام.xlsx"
+    )
+
+
 # Include the router in the main app
 app.include_router(api_router)
 
