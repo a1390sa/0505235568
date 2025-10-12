@@ -137,6 +137,25 @@ export default function ImportScreen() {
           )}
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.downloadButton}
+          onPress={() => {
+            const downloadUrl = `${BACKEND_URL}/api/download/template`;
+            if (Platform.OS === 'web') {
+              window.open(downloadUrl, '_blank');
+            } else {
+              Alert.alert(
+                'تحميل النموذج',
+                `يمكنك تحميل الملف النموذجي من:\n${downloadUrl}`,
+                [{ text: 'حسناً' }]
+              );
+            }
+          }}
+        >
+          <Ionicons name="download-outline" size={24} color="#2E7D8F" />
+          <Text style={styles.downloadButtonText}>تحميل الملف النموذجي</Text>
+        </TouchableOpacity>
+
         {/* Instructions */}
         <View style={styles.instructions}>
           <Text style={styles.instructionsTitle}>التعليمات:</Text>
