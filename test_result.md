@@ -222,8 +222,8 @@ metadata:
 
 test_plan:
   current_focus:
-    - "إضافة Local Notifications"
-    - "الشاشة الرئيسية مع قائمة المهام"
+    - "شاشة إضافة مهمة"
+    - "شاشة تفاصيل وتعديل المهمة"
   stuck_tasks:
     - "إضافة Local Notifications"
   test_all: false
