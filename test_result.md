@@ -168,11 +168,11 @@ frontend:
   
   - task: "شاشة استيراد Excel"
     implemented: true
-    working: "NA"
+    working: true
     file: "app/import.tsx"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
@@ -180,6 +180,9 @@ frontend:
         - working: "NA"
           agent: "testing"
           comment: "لم يتم اختبارها بسبب عدم إمكانية الوصول لزر الاستيراد بسبب error overlay. يحتاج اختبار بعد إصلاح مشكلة الإشعارات."
+        - working: true
+          agent: "testing"
+          comment: "✅ شاشة استيراد Excel تعمل بشكل ممتاز! تم اختبار جميع العناصر المطلوبة: عنوان 'استيراد من Excel' موجود، أيقونة cloud-upload موجودة، زر 'اختر ملف Excel' يعمل، زر 'تحميل الملف النموذجي' يعمل، قسم التعليمات مع الأعمدة السبعة المطلوبة (المجال، المهمة، الوصف، آلية التنفيذ، مكتبي/ميداني، عدد الأيام، تاريخ البداية) جميعها موجودة وواضحة. الألوان الباردة (teal/blue) مستخدمة بشكل جميل، النصوص العربية واضحة، التصميم متجاوب للموبايل (390x844)، زر الرجوع يعمل والتنقل سلس. تم اختبار تسجيل الدخول بـ 'محمد_اختبار' والانتقال للشاشة والعودة بنجاح."
   
   - task: "شاشة إضافة مهمة"
     implemented: true
