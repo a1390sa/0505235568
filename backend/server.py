@@ -192,28 +192,30 @@ async def import_tasks(userId: str, file: UploadFile = File(...)):
         # Find column indices from header row
         header_row = list(sheet.iter_rows(min_row=1, max_row=1, values_only=True))[0]
         
-        # Map column names to indices
+        # Map column names to indices - case insensitive and flexible matching
         col_map = {}
         for idx, header in enumerate(header_row):
             if header:
-                header_str = str(header).strip().lower()
+                header_str = str(header).strip()
+                # Check if contains Arabic text
                 if "مجال" in header_str:
                     col_map["field"] = idx
-                elif "مهمة" in header_str or "برنامج" in header_str:
+                if "مهمة" in header_str or "برنامج" in header_str:
                     col_map["name"] = idx
-                elif "وصف" in header_str:
+                if "وصف" in header_str:
                     col_map["description"] = idx
-                elif "آلية" in header_str and "تنفيذ" in header_str:
+                if "آلية" in header_str:
                     col_map["implementation_method"] = idx
-                elif "مكتبي" in header_str or "ميداني" in header_str:
+                if "مكتبي" in header_str or "ميداني" in header_str:
                     col_map["work_type"] = idx
-                elif "أيام" in header_str and "عدد" in header_str:
+                if "أيام" in header_str or ("عدد" in header_str and idx not in col_map.values()):
                     col_map["duration_days"] = idx
-                elif "تاريخ" in header_str and "بداية" in header_str:
+                if "تاريخ" in header_str and "بداية" in header_str:
                     col_map["start_date"] = idx
         
         # Log found columns for debugging
         logger.info(f"Detected columns: {col_map}")
+        logger.info(f"Header row: {header_row}")
         
         # Process data rows
         for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
