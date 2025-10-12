@@ -39,7 +39,11 @@ class Task(BaseModel):
     implementation_method: str = ""  # آلية التنفيذ
     work_type: str = "office"  # مكتبي/ميداني (office/field)
     duration_days: int = 1  # عدد الأيام
-    start_date: str  # تاريخ البداية
+    start_date: str  # تاريخ البداية (ميلادي)
+    start_date_hijri: Optional[str] = None  # تاريخ البداية (هجري)
+    recurrence_type: str = "none"  # none, daily, weekly, monthly
+    recurrence_end_date: Optional[str] = None  # تاريخ نهاية التكرار
+    work_days_only: bool = True  # فقط أيام العمل (الأحد-الخميس)
     priority: str = "medium"  # "high", "medium", "low"
     completed: bool = False
     createdAt: Optional[datetime] = None
