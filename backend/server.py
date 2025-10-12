@@ -80,8 +80,41 @@ class TaskUpdate(BaseModel):
     completed: Optional[bool] = None
 
 
+# Helper function to convert Gregorian to Hijri
+def gregorian_to_hijri(date_str: str) -> str:
+    try:
+        # Parse date string (YYYY-MM-DD)
+        parts = date_str.split('-')
+        if len(parts) == 3:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+            hijri = Gregorian(year, month, day).to_hijri()
+            return f"{hijri.year:04d}-{hijri.month:02d}-{hijri.day:02d}"
+    except:
+        pass
+    return ""
+
+# Helper function to convert Hijri to Gregorian
+def hijri_to_gregorian(hijri_str: str) -> str:
+    try:
+        # Parse Hijri date string (YYYY-MM-DD)
+        parts = hijri_str.split('-')
+        if len(parts) == 3:
+            year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+            greg = Hijri(year, month, day).to_gregorian()
+            return f"{greg.year:04d}-{greg.month:02d}-{greg.day:02d}"
+    except:
+        pass
+    return ""
+
 # Helper function to convert MongoDB document to Task
 def task_helper(task) -> dict:
+    start_date = task.get("start_date", "")
+    start_date_hijri = task.get("start_date_hijri", "")
+    
+    # If hijri date not set, calculate it from gregorian
+    if start_date and not start_date_hijri:
+        start_date_hijri = gregorian_to_hijri(start_date)
+    
     return {
         "id": str(task["_id"]),
         "userId": task.get("userId"),
@@ -91,7 +124,11 @@ def task_helper(task) -> dict:
         "implementation_method": task.get("implementation_method", ""),
         "work_type": task.get("work_type", "office"),
         "duration_days": task.get("duration_days", 1),
-        "start_date": task.get("start_date"),
+        "start_date": start_date,
+        "start_date_hijri": start_date_hijri,
+        "recurrence_type": task.get("recurrence_type", "none"),
+        "recurrence_end_date": task.get("recurrence_end_date"),
+        "work_days_only": task.get("work_days_only", True),
         "priority": task.get("priority", "medium"),
         "completed": task.get("completed", False),
         "createdAt": task.get("createdAt"),
