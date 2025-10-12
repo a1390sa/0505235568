@@ -58,6 +58,10 @@ class TaskCreate(BaseModel):
     work_type: str = "office"
     duration_days: int = 1
     start_date: str
+    start_date_hijri: Optional[str] = None
+    recurrence_type: str = "none"
+    recurrence_end_date: Optional[str] = None
+    work_days_only: bool = True
     priority: str = "medium"
 
 class TaskUpdate(BaseModel):
@@ -68,6 +72,10 @@ class TaskUpdate(BaseModel):
     work_type: Optional[str] = None
     duration_days: Optional[int] = None
     start_date: Optional[str] = None
+    start_date_hijri: Optional[str] = None
+    recurrence_type: Optional[str] = None
+    recurrence_end_date: Optional[str] = None
+    work_days_only: Optional[bool] = None
     priority: Optional[str] = None
     completed: Optional[bool] = None
 
