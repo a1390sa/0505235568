@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { FamilyLayout } from "@/lib/layout";
 import { CARD_WIDTH, CARD_HEIGHT } from "@/lib/layout";
 import { PersonCard } from "./PersonCard";
@@ -69,24 +69,36 @@ export const TreeCanvas = forwardRef<
     dragState.current = null;
   }, []);
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
+  // React attaches its synthetic `onWheel` as a passive listener, so calling
+  // preventDefault() on it throws "Unable to preventDefault inside passive
+  // event listener invocation" on every tick — it doesn't stop working, but
+  // it floods the console and burns the main thread badly enough to make
+  // scrolling/zooming feel like the page hung. A native listener registered
+  // with { passive: false } is required to actually cancel page scroll.
+  useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport) return;
-    const rect = viewport.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const cursorY = e.clientY - rect.top;
 
-    setTransform((t) => {
-      const nextScale = clampScale(t.scale * (e.deltaY < 0 ? 1.08 : 0.92));
-      const worldX = (cursorX - t.x) / t.scale;
-      const worldY = (cursorY - t.y) / t.scale;
-      return {
-        scale: nextScale,
-        x: cursorX - worldX * nextScale,
-        y: cursorY - worldY * nextScale,
-      };
-    });
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = viewport.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+
+      setTransform((t) => {
+        const nextScale = clampScale(t.scale * (e.deltaY < 0 ? 1.08 : 0.92));
+        const worldX = (cursorX - t.x) / t.scale;
+        const worldY = (cursorY - t.y) / t.scale;
+        return {
+          scale: nextScale,
+          x: cursorX - worldX * nextScale,
+          y: cursorY - worldY * nextScale,
+        };
+      });
+    };
+
+    viewport.addEventListener("wheel", onWheel, { passive: false });
+    return () => viewport.removeEventListener("wheel", onWheel);
   }, []);
 
   return (
@@ -96,7 +108,6 @@ export const TreeCanvas = forwardRef<
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
-      onWheel={onWheel}
       className="relative w-full h-full overflow-hidden bg-background touch-none select-none cursor-grab active:cursor-grabbing"
       style={{
         backgroundImage: "radial-gradient(var(--color-border) 1px, transparent 1px)",
