@@ -25,6 +25,14 @@ export type FamilyLayout = {
   height: number;
 };
 
+// `person.createdAt` is a real Date when it comes straight from Prisma (the
+// initial server-rendered graph), but becomes an ISO string once the graph
+// has been round-tripped through the JSON API (e.g. after refresh() runs
+// following an add/edit). `new Date(...)` normalizes either case.
+function createdAtMs(person: Person): number {
+  return new Date(person.createdAt).getTime();
+}
+
 /**
  * Lays out a family DAG (people, unions/marriages, parent-child links) into
  * a top-down pedigree grid: each generation is a row, spouses sit side by
@@ -126,7 +134,7 @@ export function computeLayout(
 
     if (gen === generations[0]) {
       ordered = [...row].sort(
-        (a, b) => personById.get(a.personIds[0])!.createdAt.getTime() - personById.get(b.personIds[0])!.createdAt.getTime()
+        (a, b) => createdAtMs(personById.get(a.personIds[0])!) - createdAtMs(personById.get(b.personIds[0])!)
       );
     } else {
       const scoreOf = (u: Unit) => {
@@ -144,7 +152,7 @@ export function computeLayout(
         const sa = scoreOf(a);
         const sb = scoreOf(b);
         if (sa !== sb) return sa - sb;
-        return personById.get(a.personIds[0])!.createdAt.getTime() - personById.get(b.personIds[0])!.createdAt.getTime();
+        return createdAtMs(personById.get(a.personIds[0])!) - createdAtMs(personById.get(b.personIds[0])!);
       });
     }
 
