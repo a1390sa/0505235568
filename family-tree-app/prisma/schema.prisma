@@ -1,0 +1,132 @@
+// Prisma schema for the family tree app (PostgreSQL, same locally and in
+// production — see README for the Neon/Vercel setup).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// A Family is the private workspace shared by everyone holding its invite link.
+model Family {
+  id          String   @id @default(cuid())
+  name        String
+  inviteToken String   @unique @default(cuid())
+  createdAt   DateTime @default(now())
+
+  members  Member[]
+  persons  Person[]
+  unions   Union[]
+  parentOf ParentChild[]
+}
+
+// A Member is a browser/person who joined via the invite link. All members
+// share equal permissions (add/edit/delete) — there is no admin role.
+model Member {
+  id          String   @id @default(cuid())
+  displayName String
+  createdAt   DateTime @default(now())
+
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  sessions      Session[]
+  createdPeople Person[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+// A person in the family tree.
+model Person {
+  id         String   @id @default(cuid())
+  firstName  String
+  lastName   String?
+  gender     Gender   @default(UNKNOWN)
+  birthDate  String? // free-form (YYYY-MM-DD or partial date / Hijri text)
+  deathDate  String?
+  isAlive    Boolean  @default(true)
+  photo      String? // base64 data URI, kept small on the client before upload
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   Member? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Union rows where this person is one of the partners.
+  unionMemberships UnionMember[]
+
+  // This person as a parent / as a child, in the ParentChild join table.
+  childLinks  ParentChild[] @relation("ParentLink")
+  parentLinks ParentChild[] @relation("ChildLink")
+
+  @@index([familyId])
+}
+
+// A union represents a marriage/partnership between two people. Modeling it
+// as its own row (rather than just a ParentChild grouping) lets one person
+// have several unions over time (divorce/remarriage) while children are
+// still linked individually to each biological/adoptive parent.
+model Union {
+  id        String   @id @default(cuid())
+  status    String   @default("married") // married | divorced | separated | partner
+  startDate String?
+  endDate   String?
+  createdAt DateTime @default(now())
+
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  members UnionMember[]
+}
+
+// One row per partner in a Union (normally 2 rows per union).
+model UnionMember {
+  id String @id @default(cuid())
+
+  unionId String
+  union   Union  @relation(fields: [unionId], references: [id], onDelete: Cascade)
+
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([unionId, personId])
+}
+
+// Each row links exactly one parent to one child, independent of any union,
+// so half-siblings and children raised outside a recorded union work fine.
+model ParentChild {
+  id String @id @default(cuid())
+
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  parentId String
+  parent   Person @relation("ParentLink", fields: [parentId], references: [id], onDelete: Cascade)
+
+  childId String
+  child   Person @relation("ChildLink", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+  @@index([familyId])
+}
