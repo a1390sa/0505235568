@@ -12,6 +12,7 @@ import { PersonDrawer } from "./PersonDrawer";
 import { PersonFormModal } from "./PersonFormModal";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { LinkParentDialog } from "./LinkParentDialog";
+import { LinkChildrenDialog } from "./LinkChildrenDialog";
 import { fullName } from "@/lib/person-display";
 import { suggestLastName } from "@/lib/relations";
 
@@ -27,6 +28,13 @@ type LinkParentPrompt = {
   candidates: Person[];
 };
 
+type LinkChildrenPrompt = {
+  spouseId: string;
+  spouseName: string;
+  anchorName: string;
+  candidates: Person[];
+};
+
 export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
   const [graph, setGraph] = useState(initialGraph);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -34,6 +42,7 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
   const [modal, setModal] = useState<ModalState>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [linkParentPrompt, setLinkParentPrompt] = useState<LinkParentPrompt | null>(null);
+  const [linkChildrenPrompt, setLinkChildrenPrompt] = useState<LinkChildrenPrompt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<TreeCanvasHandle>(null);
 
@@ -73,6 +82,17 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
       .filter(Boolean as unknown as (p: Person | undefined) => p is Person);
   }
 
+  // Children of this person who only have one recorded parent so far — the
+  // ones a newly-added spouse could plausibly also be a parent of.
+  function childrenMissingSecondParent(personId: string): Person[] {
+    return graph.parentLinks
+      .filter((pl) => pl.parentId === personId)
+      .map((pl) => pl.childId)
+      .filter((childId) => graph.parentLinks.filter((pl) => pl.childId === childId).length < 2)
+      .map((childId) => graph.persons.find((p) => p.id === childId))
+      .filter(Boolean as unknown as (p: Person | undefined) => p is Person);
+  }
+
   async function handleFormSubmit(data: PersonInput) {
     if (modal?.type === "edit") {
       await api.updatePerson(modal.person.id, data);
@@ -85,6 +105,7 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
     const { relation, anchorId } = modal;
     const anchor = anchorId ? graph.persons.find((p) => p.id === anchorId) : undefined;
     const anchorSpouses = anchorId ? spousesOf(anchorId) : [];
+    const anchorChildrenMissingParent = anchorId ? childrenMissingSecondParent(anchorId) : [];
 
     const { person: created } = await api.createPerson(data, relation, anchorId);
     setModal(null);
@@ -97,6 +118,25 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
         anchorName: fullName(anchor),
         candidates: anchorSpouses,
       });
+    } else if (relation === "spouse" && anchor && anchorChildrenMissingParent.length > 0) {
+      setLinkChildrenPrompt({
+        spouseId: created.id,
+        spouseName: fullName(created),
+        anchorName: fullName(anchor),
+        candidates: anchorChildrenMissingParent,
+      });
+    }
+  }
+
+  async function handleLinkChildren(childIds: string[]) {
+    if (!linkChildrenPrompt) return;
+    try {
+      await Promise.all(childIds.map((childId) => api.linkParentChild(linkChildrenPrompt.spouseId, childId)));
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر الربط");
+    } finally {
+      setLinkChildrenPrompt(null);
     }
   }
 
@@ -249,6 +289,16 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
           candidates={linkParentPrompt.candidates}
           onPick={handleLinkOtherParent}
           onSkip={() => setLinkParentPrompt(null)}
+        />
+      )}
+
+      {linkChildrenPrompt && (
+        <LinkChildrenDialog
+          spouseName={linkChildrenPrompt.spouseName}
+          anchorName={linkChildrenPrompt.anchorName}
+          candidates={linkChildrenPrompt.candidates}
+          onConfirm={handleLinkChildren}
+          onSkip={() => setLinkChildrenPrompt(null)}
         />
       )}
     </div>
