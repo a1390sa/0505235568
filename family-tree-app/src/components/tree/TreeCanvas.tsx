@@ -19,11 +19,12 @@ export const TreeCanvas = forwardRef<
   TreeCanvasHandle,
   {
     layout: FamilyLayout;
+    printPages: { title: string; layout: FamilyLayout }[];
     selectedPersonId: string | null;
     highlightedPersonId: string | null;
     onSelectPerson: (id: string) => void;
   }
->(function TreeCanvas({ layout, selectedPersonId, highlightedPersonId, onSelectPerson }, ref) {
+>(function TreeCanvas({ layout, printPages, selectedPersonId, highlightedPersonId, onSelectPerson }, ref) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState({ x: 40, y: 40, scale: 0.85 });
   const dragState = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
@@ -135,7 +136,7 @@ export const TreeCanvas = forwardRef<
                 points={edge.points.map((p) => `${p.x},${p.y}`).join(" ")}
                 fill="none"
                 stroke="var(--color-border)"
-                strokeWidth={edge.kind === "couple" ? 3 : 2}
+                strokeWidth={2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -165,46 +166,50 @@ export const TreeCanvas = forwardRef<
         </div>
       )}
 
-      {/* Print-only: the same layout at natural size with no pan/zoom
-          transform, so the browser's print engine can paginate it and the
-          "fit to page" print option scales it down as needed. */}
-      {layout.persons.length > 0 && (
-        <div
-          dir="ltr"
-          className="hidden print:block relative"
-          style={{ width: layout.width, height: layout.height }}
-        >
-          <svg width={layout.width} height={layout.height} className="absolute top-0 left-0 overflow-visible">
-            {layout.edges.map((edge) => (
-              <polyline
-                key={edge.id}
-                points={edge.points.map((p) => `${p.x},${p.y}`).join(" ")}
-                fill="none"
-                stroke="#94a3b8"
-                strokeWidth={edge.kind === "couple" ? 3 : 2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            ))}
-          </svg>
-
-          {layout.persons.map((person) => (
-            <div
-              key={person.id}
-              dir="rtl"
-              className="absolute"
-              style={{
-                width: CARD_WIDTH,
-                height: CARD_HEIGHT,
-                left: person.x,
-                top: person.y,
-              }}
+      {/* Print-only: each entry is one father-and-his-descendants branch,
+          laid out at natural size with no pan/zoom transform and forced
+          onto its own printed page, so a large tree splits into readable
+          per-branch pages instead of one page for the whole family. */}
+      {printPages.map((page, i) => (
+        <div key={i} dir="ltr" className="hidden print:block" style={{ breakAfter: "page" }}>
+          <h3 className="text-center font-bold py-2">{page.title}</h3>
+          <div className="relative" style={{ width: page.layout.width, height: page.layout.height }}>
+            <svg
+              width={page.layout.width}
+              height={page.layout.height}
+              className="absolute top-0 left-0 overflow-visible"
             >
-              <PersonCard person={person} selected={false} highlighted={false} onClick={() => {}} />
-            </div>
-          ))}
+              {page.layout.edges.map((edge) => (
+                <polyline
+                  key={edge.id}
+                  points={edge.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                  fill="none"
+                  stroke="#94a3b8"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ))}
+            </svg>
+
+            {page.layout.persons.map((person) => (
+              <div
+                key={person.id}
+                dir="rtl"
+                className="absolute"
+                style={{
+                  width: CARD_WIDTH,
+                  height: CARD_HEIGHT,
+                  left: person.x,
+                  top: person.y,
+                }}
+              >
+                <PersonCard person={person} selected={false} highlighted={false} onClick={() => {}} />
+              </div>
+            ))}
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 });
