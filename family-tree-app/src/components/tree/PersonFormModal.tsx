@@ -6,6 +6,7 @@ import type { Relation } from "@/lib/api-client";
 import type { PersonInput } from "@/lib/validation";
 import { resizeImageFile } from "@/lib/image";
 import { fullName } from "@/lib/person-display";
+import { HijriDateField } from "./HijriDateField";
 
 const RELATION_LABEL: Record<Relation, string> = {
   father: "إضافة أب",
@@ -157,15 +158,7 @@ export function PersonFormModal({
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">تاريخ الميلاد</label>
-            <input
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              placeholder="مثال: 1990 أو 1990-05-12"
-              className="rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+          <HijriDateField label="تاريخ الميلاد" value={birthDate} onChange={setBirthDate} />
 
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={!isAlive} onChange={(e) => setIsAlive(!e.target.checked)} />
@@ -173,14 +166,7 @@ export function PersonFormModal({
           </label>
 
           {!isAlive && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium">تاريخ الوفاة</label>
-              <input
-                value={deathDate}
-                onChange={(e) => setDeathDate(e.target.value)}
-                className="rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+            <HijriDateField label="تاريخ الوفاة" value={deathDate} onChange={setDeathDate} />
           )}
 
           <div className="flex flex-col gap-1.5">
