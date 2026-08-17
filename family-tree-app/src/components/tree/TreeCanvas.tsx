@@ -108,20 +108,20 @@ export const TreeCanvas = forwardRef<
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
-      className="relative w-full h-full overflow-hidden bg-background touch-none select-none cursor-grab active:cursor-grabbing"
+      className="relative w-full h-full overflow-hidden bg-background touch-none select-none cursor-grab active:cursor-grabbing print:static print:h-auto print:w-auto print:overflow-visible"
       style={{
         backgroundImage: "radial-gradient(var(--color-border) 1px, transparent 1px)",
         backgroundSize: "24px 24px",
       }}
     >
       {layout.persons.length === 0 ? (
-        <div className="absolute inset-0 flex items-center justify-center text-muted">
+        <div className="absolute inset-0 flex items-center justify-center text-muted print:hidden">
           لا يوجد أفراد بعد — ابدأ بإضافة أول شخص في الشجرة
         </div>
       ) : (
         <div
           dir="ltr"
-          className="absolute top-0 left-0 origin-top-left"
+          className="absolute top-0 left-0 origin-top-left print:hidden"
           style={{
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
             width: layout.width,
@@ -160,6 +160,47 @@ export const TreeCanvas = forwardRef<
                 highlighted={highlightedPersonId === person.id}
                 onClick={() => onSelectPerson(person.id)}
               />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Print-only: the same layout at natural size with no pan/zoom
+          transform, so the browser's print engine can paginate it and the
+          "fit to page" print option scales it down as needed. */}
+      {layout.persons.length > 0 && (
+        <div
+          dir="ltr"
+          className="hidden print:block relative"
+          style={{ width: layout.width, height: layout.height }}
+        >
+          <svg width={layout.width} height={layout.height} className="absolute top-0 left-0 overflow-visible">
+            {layout.edges.map((edge) => (
+              <polyline
+                key={edge.id}
+                points={edge.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                fill="none"
+                stroke="#94a3b8"
+                strokeWidth={edge.kind === "couple" ? 3 : 2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            ))}
+          </svg>
+
+          {layout.persons.map((person) => (
+            <div
+              key={person.id}
+              dir="rtl"
+              className="absolute"
+              style={{
+                width: CARD_WIDTH,
+                height: CARD_HEIGHT,
+                left: person.x,
+                top: person.y,
+              }}
+            >
+              <PersonCard person={person} selected={false} highlighted={false} onClick={() => {}} />
             </div>
           ))}
         </div>
