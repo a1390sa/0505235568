@@ -23,6 +23,7 @@ function RelatedList({ title, people }: { title: string; people: Person[] }) {
 export function PersonDrawer({
   person,
   parents,
+  siblings,
   kids,
   spouses,
   canAddParent,
@@ -33,6 +34,7 @@ export function PersonDrawer({
 }: {
   person: Person;
   parents: Person[];
+  siblings: Person[];
   kids: Person[];
   spouses: Person[];
   canAddParent: boolean;
@@ -77,6 +79,7 @@ export function PersonDrawer({
 
         <div className="px-5 pt-4 flex flex-col gap-3">
           <RelatedList title="الوالدان" people={parents} />
+          <RelatedList title="الإخوة" people={siblings} />
           <RelatedList title="الزوج/الزوجة" people={spouses} />
           <RelatedList title="الأبناء" people={kids} />
         </div>

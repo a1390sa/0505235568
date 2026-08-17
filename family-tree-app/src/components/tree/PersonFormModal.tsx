@@ -19,6 +19,7 @@ export function PersonFormModal({
   existingPerson,
   relation,
   anchorName,
+  initialLastName,
   onCancel,
   onSubmit,
 }: {
@@ -26,11 +27,12 @@ export function PersonFormModal({
   existingPerson?: Person;
   relation?: Relation;
   anchorName?: string;
+  initialLastName?: string;
   onCancel: () => void;
   onSubmit: (data: PersonInput) => Promise<void>;
 }) {
   const [firstName, setFirstName] = useState(existingPerson?.firstName ?? "");
-  const [lastName, setLastName] = useState(existingPerson?.lastName ?? "");
+  const [lastName, setLastName] = useState(existingPerson?.lastName ?? initialLastName ?? "");
   const [gender, setGender] = useState(existingPerson?.gender ?? "UNKNOWN");
   const [birthDate, setBirthDate] = useState(existingPerson?.birthDate ?? "");
   const [isAlive, setIsAlive] = useState(existingPerson?.isAlive ?? true);
@@ -126,6 +128,9 @@ export function PersonFormModal({
                 onChange={(e) => setLastName(e.target.value)}
                 className="rounded-lg border border-border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-primary"
               />
+              {mode === "create" && initialLastName && lastName === initialLastName && (
+                <p className="text-xs text-muted">تم تعبئته تلقائياً من {anchorName}، يمكنك تعديله</p>
+              )}
             </div>
           </div>
 
