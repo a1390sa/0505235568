@@ -1,25 +1,15 @@
-import type {
-  PersonModel as Person,
-  UnionModel as Union,
-  UnionMemberModel as UnionMember,
-  ParentChildModel as ParentChild,
-} from "@/generated/prisma/models";
-
-export type UnionWithMembers = Union & { members: UnionMember[] };
+import type { PersonModel as Person, ParentChildModel as ParentChild } from "@/generated/prisma/models";
 
 export const CARD_WIDTH = 150;
 export const CARD_HEIGHT = 190;
 export const COL_WIDTH = CARD_WIDTH + 40;
 export const ROW_HEIGHT = CARD_HEIGHT + 90;
-export const COUPLE_LINK_GAP = 14;
 
 export type LaidOutPerson = Person & { generation: number; x: number; y: number };
-export type LaidOutUnion = { id: string; x: number; y: number; personIds: string[] };
-export type LaidOutEdge = { id: string; kind: "parent" | "couple"; points: { x: number; y: number }[] };
+export type LaidOutEdge = { id: string; points: { x: number; y: number }[] };
 
 export type FamilyLayout = {
   persons: LaidOutPerson[];
-  unions: LaidOutUnion[];
   edges: LaidOutEdge[];
   width: number;
   height: number;
@@ -33,225 +23,190 @@ function createdAtMs(person: Person): number {
   return new Date(person.createdAt).getTime();
 }
 
-/**
- * Lays out a family DAG (people, unions/marriages, parent-child links) into
- * a top-down pedigree grid: each generation is a row, spouses sit side by
- * side, and children are ordered under the average x of their parents'
- * union (a simple barycenter pass — good enough for a few hundred nodes).
- */
-export function computeLayout(
+// The display tree follows the paternal line only, per family-tree (نسب)
+// convention: a person's children are only shown descending from them when
+// that person is male. A daughter's own children belong to their father's
+// line, not hers, so they never appear as her descendants here — they show
+// up instead under their actual father if he's recorded in this family, or
+// not at all in the tree view (though still visible in the full data page).
+// Wives/spouses never appear as their own nodes in this tree.
+export type PatriNode = { person: Person; children: PatriNode[] };
+
+export function buildPatrilinealForest(
   persons: Person[],
-  unions: UnionWithMembers[],
-  parentLinks: ParentChild[]
-): FamilyLayout {
-  if (persons.length === 0) {
-    return { persons: [], unions: [], edges: [], width: 0, height: 0 };
-  }
-
+  parentLinks: ParentChild[],
+  unions: { members: { personId: string }[] }[]
+): PatriNode[] {
   const personById = new Map(persons.map((p) => [p.id, p]));
-  const parentsOf = new Map<string, string[]>();
-  const childrenOf = new Map<string, string[]>();
-  for (const pl of parentLinks) {
-    if (!personById.has(pl.parentId) || !personById.has(pl.childId)) continue;
-    if (!parentsOf.has(pl.childId)) parentsOf.set(pl.childId, []);
-    parentsOf.get(pl.childId)!.push(pl.parentId);
-    if (!childrenOf.has(pl.parentId)) childrenOf.set(pl.parentId, []);
-    childrenOf.get(pl.parentId)!.push(pl.childId);
+
+  const childrenByFather = new Map<string, string[]>();
+  for (const link of parentLinks) {
+    const parent = personById.get(link.parentId);
+    if (parent?.gender !== "MALE") continue;
+    if (!personById.has(link.childId)) continue;
+    if (!childrenByFather.has(link.parentId)) childrenByFather.set(link.parentId, []);
+    childrenByFather.get(link.parentId)!.push(link.childId);
+  }
+  for (const ids of childrenByFather.values()) {
+    ids.sort((a, b) => createdAtMs(personById.get(a)!) - createdAtMs(personById.get(b)!));
   }
 
-  // 1) Generation assignment via fixed-point relaxation, alternating
-  // "child below parent" and "spouses share a generation" until stable.
-  const generation = new Map<string, number>();
-  for (const p of persons) generation.set(p.id, 0);
-
-  for (let pass = 0; pass < persons.length + 3; pass++) {
-    let changed = false;
-
-    for (const pl of parentLinks) {
-      const pg = generation.get(pl.parentId) ?? 0;
-      const cg = generation.get(pl.childId) ?? 0;
-      if (cg < pg + 1) {
-        generation.set(pl.childId, pg + 1);
-        changed = true;
-      }
-    }
-
-    for (const u of unions) {
-      const ids = u.members.map((m) => m.personId).filter((id) => personById.has(id));
-      if (ids.length < 2) continue;
-      const maxGen = Math.max(...ids.map((id) => generation.get(id) ?? 0));
-      for (const id of ids) {
-        if ((generation.get(id) ?? 0) < maxGen) {
-          generation.set(id, maxGen);
-          changed = true;
-        }
-      }
-    }
-
-    if (!changed) break;
+  const hasParent = new Set<string>();
+  for (const link of parentLinks) {
+    if (personById.has(link.parentId) && personById.has(link.childId)) hasParent.add(link.childId);
   }
 
-  // 2) Group people into layout "units": a couple (union) is one unit that
-  // stays together; everyone else is a lone unit.
-  type Unit = { id: string; personIds: string[]; generation: number };
-  const units: Unit[] = [];
-  const placedPerson = new Set<string>();
-  const unitOfPerson = new Map<string, string>();
-
+  // Group everyone into connected components via BOTH blood (parent-child)
+  // and marriage (union) links, then pick a single root per component —
+  // preferring the earliest-recorded male with no parent of his own. This
+  // is what keeps a wife (who married in and has no recorded parents) from
+  // becoming her own disconnected root: she and her husband end up in the
+  // same component, and he wins the root by being male.
+  const setOf = new Map<string, string>();
+  for (const p of persons) setOf.set(p.id, p.id);
+  function find(x: string): string {
+    while (setOf.get(x) !== x) {
+      setOf.set(x, setOf.get(setOf.get(x)!)!);
+      x = setOf.get(x)!;
+    }
+    return x;
+  }
+  function joinSets(a: string, b: string) {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) setOf.set(ra, rb);
+  }
+  for (const link of parentLinks) {
+    if (personById.has(link.parentId) && personById.has(link.childId)) joinSets(link.parentId, link.childId);
+  }
   for (const u of unions) {
-    const ids = u.members.map((m) => m.personId).filter((id) => personById.has(id) && !placedPerson.has(id));
-    if (ids.length === 0) continue;
-    const unitId = `u-${u.id}`;
-    const gen = Math.max(...ids.map((id) => generation.get(id) ?? 0));
-    units.push({ id: unitId, personIds: ids, generation: gen });
-    for (const id of ids) {
-      placedPerson.add(id);
-      unitOfPerson.set(id, unitId);
-    }
+    const ids = u.members.map((m) => m.personId).filter((id) => personById.has(id));
+    for (let i = 1; i < ids.length; i++) joinSets(ids[0], ids[i]);
   }
+
+  const componentMembers = new Map<string, string[]>();
   for (const p of persons) {
-    if (placedPerson.has(p.id)) continue;
-    const unitId = `p-${p.id}`;
-    units.push({ id: unitId, personIds: [p.id], generation: generation.get(p.id) ?? 0 });
-    placedPerson.add(p.id);
-    unitOfPerson.set(p.id, unitId);
+    const root = find(p.id);
+    if (!componentMembers.has(root)) componentMembers.set(root, []);
+    componentMembers.get(root)!.push(p.id);
   }
 
-  const byGeneration = new Map<number, Unit[]>();
-  for (const u of units) {
-    if (!byGeneration.has(u.generation)) byGeneration.set(u.generation, []);
-    byGeneration.get(u.generation)!.push(u);
+  const roots: Person[] = [];
+  for (const memberIds of componentMembers.values()) {
+    const noParentIds = memberIds.filter((id) => !hasParent.has(id));
+    const candidates = noParentIds.length > 0 ? noParentIds : memberIds;
+    const maleCandidates = candidates.filter((id) => personById.get(id)!.gender === "MALE");
+    const pool = maleCandidates.length > 0 ? maleCandidates : candidates;
+    const chosenId = pool.reduce((best, id) => (createdAtMs(personById.get(id)!) < createdAtMs(personById.get(best)!) ? id : best));
+    roots.push(personById.get(chosenId)!);
   }
-  const generations = [...byGeneration.keys()].sort((a, b) => a - b);
+  roots.sort((a, b) => createdAtMs(a) - createdAtMs(b));
 
-  // 3) Order each row left-to-right: row 0 by creation order, later rows by
-  // the average x of each unit's parent unit(s) (barycenter heuristic).
-  const unitCenterSlot = new Map<string, number>();
-
-  for (const gen of generations) {
-    const row = byGeneration.get(gen)!;
-    let ordered: Unit[];
-
-    if (gen === generations[0]) {
-      ordered = [...row].sort(
-        (a, b) => createdAtMs(personById.get(a.personIds[0])!) - createdAtMs(personById.get(b.personIds[0])!)
-      );
-    } else {
-      const scoreOf = (u: Unit) => {
-        const parentSlots: number[] = [];
-        for (const pid of u.personIds) {
-          for (const parentId of parentsOf.get(pid) ?? []) {
-            const parentUnit = unitOfPerson.get(parentId);
-            if (parentUnit && unitCenterSlot.has(parentUnit)) parentSlots.push(unitCenterSlot.get(parentUnit)!);
-          }
-        }
-        if (parentSlots.length === 0) return Number.POSITIVE_INFINITY;
-        return parentSlots.reduce((a, b) => a + b, 0) / parentSlots.length;
-      };
-      ordered = [...row].sort((a, b) => {
-        const sa = scoreOf(a);
-        const sb = scoreOf(b);
-        if (sa !== sb) return sa - sb;
-        return createdAtMs(personById.get(a.personIds[0])!) - createdAtMs(personById.get(b.personIds[0])!);
-      });
-    }
-
-    let cursor = 0;
-    for (const u of ordered) {
-      const width = u.personIds.length;
-      unitCenterSlot.set(u.id, cursor + (width - 1) / 2);
-      cursor += width;
-    }
+  function build(personId: string): PatriNode {
+    const childIds = childrenByFather.get(personId) ?? [];
+    return { person: personById.get(personId)!, children: childIds.map(build) };
   }
 
-  // 4) Convert slots to pixel positions.
+  return roots.map((r) => build(r.id));
+}
+
+/** Lays out one or more patrilineal trees side by side, generation-per-row. */
+export function layoutForest(forest: PatriNode[]): FamilyLayout {
   const laidOutPersons: LaidOutPerson[] = [];
-  for (const gen of generations) {
-    for (const u of byGeneration.get(gen)!) {
-      const baseSlot = unitCenterSlot.get(u.id)! - (u.personIds.length - 1) / 2;
-      u.personIds.forEach((pid, idx) => {
-        const p = personById.get(pid)!;
-        laidOutPersons.push({
-          ...p,
-          generation: gen,
-          x: (baseSlot + idx) * COL_WIDTH,
-          y: gen * ROW_HEIGHT,
-        });
-      });
+  let cursor = 0;
+
+  function place(node: PatriNode, depth: number): number {
+    let slot: number;
+    if (node.children.length === 0) {
+      slot = cursor++;
+    } else {
+      const childSlots = node.children.map((c) => place(c, depth + 1));
+      slot = (Math.min(...childSlots) + Math.max(...childSlots)) / 2;
     }
+    laidOutPersons.push({ ...node.person, generation: depth, x: slot * COL_WIDTH, y: depth * ROW_HEIGHT });
+    return slot;
   }
+
+  for (const root of forest) {
+    place(root, 0);
+    cursor += 1; // gap between separate trees
+  }
+
+  if (laidOutPersons.length === 0) {
+    return { persons: [], edges: [], width: 0, height: 0 };
+  }
+
   const posById = new Map(laidOutPersons.map((p) => [p.id, { x: p.x, y: p.y }]));
-
-  const laidOutUnions: LaidOutUnion[] = units
-    .filter((u) => u.personIds.length > 1)
-    .map((u) => {
-      const xs = u.personIds.map((pid) => posById.get(pid)!.x);
-      return {
-        id: u.id,
-        x: (Math.min(...xs) + Math.max(...xs)) / 2 + CARD_WIDTH / 2,
-        y: posById.get(u.personIds[0])!.y + CARD_HEIGHT / 2,
-        personIds: u.personIds,
-      };
-    });
-
-  // 5) Edges: couple links between adjacent spouse cards, and elbow
-  // connectors from each parent (or their union midpoint) down to each child.
   const edges: LaidOutEdge[] = [];
 
-  for (const u of laidOutUnions) {
-    const [aId, bId] = u.personIds;
-    if (!bId) continue;
-    const a = posById.get(aId)!;
-    const b = posById.get(bId)!;
-    const y = a.y + CARD_HEIGHT / 2;
-    edges.push({
-      id: `couple-${u.id}`,
-      kind: "couple",
-      points: [
-        { x: a.x + CARD_WIDTH, y },
-        { x: b.x, y },
-      ],
-    });
-  }
-
-  const connectorOrigin = (personId: string) => {
-    const pos = posById.get(personId)!;
-    const unionId = unitOfPerson.get(personId);
-    const union = unionId ? laidOutUnions.find((u) => u.id === unionId) : undefined;
-    if (union) return { x: union.x, y: union.y };
-    return { x: pos.x + CARD_WIDTH / 2, y: pos.y + CARD_HEIGHT / 2 };
-  };
-
-  for (const [childId, parents] of parentsOf) {
-    const child = posById.get(childId);
-    if (!child) continue;
-    const childTop = { x: child.x + CARD_WIDTH / 2, y: child.y };
-
-    // If both recorded parents share a union, draw a single line from it.
-    const uniqueOrigins = new Map<string, { x: number; y: number }>();
-    for (const parentId of parents) {
-      const origin = connectorOrigin(parentId);
-      uniqueOrigins.set(`${origin.x},${origin.y}`, origin);
-    }
-
-    let idx = 0;
-    for (const origin of uniqueOrigins.values()) {
-      const midY = origin.y + (childTop.y - origin.y) / 2;
+  function addEdges(node: PatriNode) {
+    const parentPos = posById.get(node.person.id)!;
+    const originX = parentPos.x + CARD_WIDTH / 2;
+    const originY = parentPos.y + CARD_HEIGHT;
+    for (const child of node.children) {
+      const childPos = posById.get(child.person.id)!;
+      const childTopX = childPos.x + CARD_WIDTH / 2;
+      const midY = originY + (childPos.y - originY) / 2;
       edges.push({
-        id: `parent-${childId}-${idx++}`,
-        kind: "parent",
+        id: `edge-${node.person.id}-${child.person.id}`,
         points: [
-          { x: origin.x, y: origin.y },
-          { x: origin.x, y: midY },
-          { x: childTop.x, y: midY },
-          { x: childTop.x, y: childTop.y },
+          { x: originX, y: originY },
+          { x: originX, y: midY },
+          { x: childTopX, y: midY },
+          { x: childTopX, y: childPos.y },
         ],
       });
+      addEdges(child);
     }
   }
+  for (const root of forest) addEdges(root);
 
   const maxX = Math.max(...laidOutPersons.map((p) => p.x)) + CARD_WIDTH;
   const maxY = Math.max(...laidOutPersons.map((p) => p.y)) + CARD_HEIGHT;
+  return { persons: laidOutPersons, edges, width: maxX + COL_WIDTH, height: maxY + ROW_HEIGHT };
+}
 
-  return { persons: laidOutPersons, unions: laidOutUnions, edges, width: maxX + COL_WIDTH, height: maxY + ROW_HEIGHT };
+// --- Print pagination -------------------------------------------------
+//
+// Each printed page must contain at minimum one father with his direct
+// children together (never split across pages). When a branch is small
+// enough, a page opportunistically extends to grandchildren (up to
+// MAX_PAGE_DEPTH generations) instead of always splitting per child.
+
+const MAX_PAGE_DEPTH = 3; // father + children + grandchildren
+const MAX_PAGE_LEAVES = 14; // cap so a single page doesn't get unreadably wide
+
+function countLeaves(node: PatriNode, depth: number, maxDepth: number): number {
+  if (depth >= maxDepth || node.children.length === 0) return 1;
+  return node.children.reduce((sum, c) => sum + countLeaves(c, depth + 1, maxDepth), 0);
+}
+
+/** Splits a forest into printable pages, each a (possibly truncated) subtree. */
+export function buildPrintPages(forest: PatriNode[]): PatriNode[] {
+  const pages: PatriNode[] = [];
+
+  function process(node: PatriNode) {
+    let chosenDepth = 1;
+    for (let d = MAX_PAGE_DEPTH; d >= 1; d--) {
+      if (countLeaves(node, 0, d) <= MAX_PAGE_LEAVES) {
+        chosenDepth = d;
+        break;
+      }
+    }
+
+    function truncate(n: PatriNode, depth: number): PatriNode {
+      if (depth >= chosenDepth) {
+        // n's own children didn't fit on this page — n becomes the root of
+        // its own subsequent page(s), not its children directly.
+        if (n.children.length > 0) process(n);
+        return { person: n.person, children: [] };
+      }
+      return { person: n.person, children: n.children.map((c) => truncate(c, depth + 1)) };
+    }
+
+    pages.push(truncate(node, 0));
+  }
+
+  for (const root of forest) process(root);
+  return pages;
 }

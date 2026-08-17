@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { PersonModel as Person } from "@/generated/prisma/models";
-import { computeLayout } from "@/lib/layout";
+import { buildPatrilinealForest, layoutForest, buildPrintPages } from "@/lib/layout";
 import type { PersonInput } from "@/lib/validation";
 import * as api from "@/lib/api-client";
 import type { GraphResponse, Relation } from "@/lib/api-client";
@@ -46,9 +46,18 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<TreeCanvasHandle>(null);
 
-  const layout = useMemo(
-    () => computeLayout(graph.persons, graph.unions, graph.parentLinks),
-    [graph.persons, graph.unions, graph.parentLinks]
+  const forest = useMemo(
+    () => buildPatrilinealForest(graph.persons, graph.parentLinks, graph.unions),
+    [graph.persons, graph.parentLinks, graph.unions]
+  );
+  const layout = useMemo(() => layoutForest(forest), [forest]);
+  const printPages = useMemo(
+    () =>
+      buildPrintPages(forest).map((page) => ({
+        title: `${graph.family.name} — فرع ${fullName(page.person)}`,
+        layout: layoutForest([page]),
+      })),
+    [forest, graph.family.name]
   );
 
   const selectedPerson = graph.persons.find((p) => p.id === selectedPersonId) ?? null;
@@ -209,12 +218,11 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
         </div>
       )}
 
-      <h2 className="hidden print:block text-xl font-bold text-center py-4">{graph.family.name}</h2>
-
       <div className="relative flex-1 min-h-0 print:static print:h-auto">
         <TreeCanvas
           ref={canvasRef}
           layout={layout}
+          printPages={printPages}
           selectedPersonId={selectedPersonId}
           highlightedPersonId={highlightedPersonId}
           onSelectPerson={selectPerson}

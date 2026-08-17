@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { PersonModel as Person } from "@/generated/prisma/models";
 import { logout } from "@/app/actions/family";
 import { SearchBox } from "./SearchBox";
@@ -58,6 +59,10 @@ export function TopBar({
         >
           طباعة
         </button>
+
+        <Link href="/tree/data" className="rounded-lg border border-border px-3 py-2 text-sm whitespace-nowrap">
+          البيانات
+        </Link>
 
         <button
           onClick={copyInviteLink}
