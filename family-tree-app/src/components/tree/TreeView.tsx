@@ -11,12 +11,21 @@ import { TreeCanvas, type TreeCanvasHandle } from "./TreeCanvas";
 import { PersonDrawer } from "./PersonDrawer";
 import { PersonFormModal } from "./PersonFormModal";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { LinkParentDialog } from "./LinkParentDialog";
 import { fullName } from "@/lib/person-display";
+import { suggestLastName } from "@/lib/relations";
 
 type ModalState =
   | { type: "create"; relation?: Relation; anchorId?: string }
   | { type: "edit"; person: Person }
   | null;
+
+type LinkParentPrompt = {
+  childId: string;
+  childName: string;
+  anchorName: string;
+  candidates: Person[];
+};
 
 export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
   const [graph, setGraph] = useState(initialGraph);
@@ -24,6 +33,7 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
   const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [linkParentPrompt, setLinkParentPrompt] = useState<LinkParentPrompt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<TreeCanvasHandle>(null);
 
@@ -56,14 +66,50 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
     setTimeout(() => setHighlightedPersonId((cur) => (cur === id ? null : cur)), 1600);
   }
 
+  function spousesOf(personId: string): Person[] {
+    return graph.unions
+      .filter((u) => u.members.some((m) => m.personId === personId))
+      .flatMap((u) => u.members.filter((m) => m.personId !== personId).map((m) => graph.persons.find((p) => p.id === m.personId)))
+      .filter(Boolean as unknown as (p: Person | undefined) => p is Person);
+  }
+
   async function handleFormSubmit(data: PersonInput) {
     if (modal?.type === "edit") {
       await api.updatePerson(modal.person.id, data);
-    } else if (modal?.type === "create") {
-      await api.createPerson(data, modal.relation, modal.anchorId);
+      setModal(null);
+      await refresh();
+      return;
     }
+    if (modal?.type !== "create") return;
+
+    const { relation, anchorId } = modal;
+    const anchor = anchorId ? graph.persons.find((p) => p.id === anchorId) : undefined;
+    const anchorSpouses = anchorId ? spousesOf(anchorId) : [];
+
+    const { person: created } = await api.createPerson(data, relation, anchorId);
     setModal(null);
     await refresh();
+
+    if (relation === "child" && anchor && anchorSpouses.length > 0) {
+      setLinkParentPrompt({
+        childId: created.id,
+        childName: fullName(created),
+        anchorName: fullName(anchor),
+        candidates: anchorSpouses,
+      });
+    }
+  }
+
+  async function handleLinkOtherParent(parentId: string) {
+    if (!linkParentPrompt) return;
+    try {
+      await api.linkParentChild(parentId, linkParentPrompt.childId);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر الربط");
+    } finally {
+      setLinkParentPrompt(null);
+    }
   }
 
   async function handleDelete() {
@@ -84,12 +130,23 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
   const childrenOfSelected = selectedPerson
     ? graph.parentLinks.filter((pl) => pl.parentId === selectedPerson.id).map((pl) => graph.persons.find((p) => p.id === pl.childId)).filter(Boolean as unknown as (p: Person | undefined) => p is Person)
     : [];
-  const spousesOfSelected = selectedPerson
-    ? graph.unions
-        .filter((u) => u.members.some((m) => m.personId === selectedPerson.id))
-        .flatMap((u) => u.members.filter((m) => m.personId !== selectedPerson.id).map((m) => graph.persons.find((p) => p.id === m.personId)))
-        .filter(Boolean as unknown as (p: Person | undefined) => p is Person)
+  const spousesOfSelected = selectedPerson ? spousesOf(selectedPerson.id) : [];
+  // Siblings are never stored directly — they fall out automatically from
+  // sharing at least one recorded parent, so this list is always in sync.
+  const siblingsOfSelected = selectedPerson
+    ? graph.persons.filter(
+        (p) =>
+          p.id !== selectedPerson.id &&
+          graph.parentLinks.some(
+            (pl) => pl.childId === p.id && parentsOfSelected.some((parent) => parent.id === pl.parentId)
+          )
+      )
     : [];
+
+  const modalAnchor = modal?.type === "create" && modal.anchorId ? graph.persons.find((p) => p.id === modal.anchorId) : undefined;
+  const modalAnchorSpouses = modalAnchor ? spousesOf(modalAnchor.id) : [];
+  const modalInitialLastName =
+    modal?.type === "create" ? suggestLastName(modal.relation, modalAnchor, modalAnchorSpouses) : undefined;
 
   return (
     <div className="flex flex-col h-dvh">
@@ -149,6 +206,7 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
         <PersonDrawer
           person={selectedPerson}
           parents={parentsOfSelected}
+          siblings={siblingsOfSelected}
           kids={childrenOfSelected}
           spouses={spousesOfSelected}
           canAddParent={parentsOfSelected.length < 2}
@@ -164,11 +222,8 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
           mode={modal.type}
           existingPerson={modal.type === "edit" ? modal.person : undefined}
           relation={modal.type === "create" ? modal.relation : undefined}
-          anchorName={
-            modal.type === "create" && modal.anchorId
-              ? fullName(graph.persons.find((p) => p.id === modal.anchorId)!)
-              : undefined
-          }
+          anchorName={modalAnchor ? fullName(modalAnchor) : undefined}
+          initialLastName={modalInitialLastName}
           onCancel={() => setModal(null)}
           onSubmit={handleFormSubmit}
         />
@@ -181,6 +236,16 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
           confirmLabel="حذف"
           onConfirm={handleDelete}
           onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+
+      {linkParentPrompt && (
+        <LinkParentDialog
+          childName={linkParentPrompt.childName}
+          anchorName={linkParentPrompt.anchorName}
+          candidates={linkParentPrompt.candidates}
+          onPick={handleLinkOtherParent}
+          onSkip={() => setLinkParentPrompt(null)}
         />
       )}
     </div>
