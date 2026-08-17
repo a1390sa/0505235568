@@ -17,7 +17,7 @@ export function LinkParentDialog({
   onSkip: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onSkip}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 print:hidden" onClick={onSkip}>
       <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-foreground mb-2">ربط الوالد الآخر</h2>
         <p className="text-sm text-muted mb-4">

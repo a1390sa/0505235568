@@ -149,7 +149,7 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
     modal?.type === "create" ? suggestLastName(modal.relation, modalAnchor, modalAnchorSpouses) : undefined;
 
   return (
-    <div className="flex flex-col h-dvh">
+    <div className="flex flex-col h-dvh print:block print:h-auto">
       <TopBar
         familyName={graph.family.name}
         inviteToken={graph.family.inviteToken}
@@ -157,10 +157,11 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
         persons={graph.persons}
         onSelectPerson={handleSearchSelect}
         onAddPerson={() => setModal({ type: "create" })}
+        onPrint={() => window.print()}
       />
 
       {error && (
-        <div className="bg-red-50 text-red-700 text-sm text-center py-2 px-4 flex items-center justify-center gap-3">
+        <div className="bg-red-50 text-red-700 text-sm text-center py-2 px-4 flex items-center justify-center gap-3 print:hidden">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="underline">
             إغلاق
@@ -168,7 +169,9 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
         </div>
       )}
 
-      <div className="relative flex-1 min-h-0">
+      <h2 className="hidden print:block text-xl font-bold text-center py-4">{graph.family.name}</h2>
+
+      <div className="relative flex-1 min-h-0 print:static print:h-auto">
         <TreeCanvas
           ref={canvasRef}
           layout={layout}
@@ -177,7 +180,7 @@ export function TreeView({ initialGraph }: { initialGraph: GraphResponse }) {
           onSelectPerson={selectPerson}
         />
 
-        <div className="absolute bottom-4 left-4 flex flex-col gap-2">
+        <div className="absolute bottom-4 left-4 flex flex-col gap-2 print:hidden">
           <button
             onClick={() => canvasRef.current?.zoomIn()}
             className="w-10 h-10 rounded-full bg-surface border border-border shadow flex items-center justify-center text-lg"

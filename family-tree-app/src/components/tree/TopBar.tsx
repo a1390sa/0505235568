@@ -12,6 +12,7 @@ export function TopBar({
   persons,
   onSelectPerson,
   onAddPerson,
+  onPrint,
 }: {
   familyName: string;
   inviteToken: string;
@@ -19,6 +20,7 @@ export function TopBar({
   persons: Person[];
   onSelectPerson: (id: string) => void;
   onAddPerson: () => void;
+  onPrint: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -34,7 +36,7 @@ export function TopBar({
   }
 
   return (
-    <header className="flex flex-wrap items-center gap-3 justify-between border-b border-border bg-surface px-4 py-3">
+    <header className="flex flex-wrap items-center gap-3 justify-between border-b border-border bg-surface px-4 py-3 print:hidden">
       <div className="flex items-center gap-3 min-w-0">
         <h1 className="font-bold text-foreground truncate">{familyName}</h1>
         <span className="text-xs text-muted hidden sm:inline">مرحباً {memberName}</span>
@@ -48,6 +50,13 @@ export function TopBar({
           className="rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-medium whitespace-nowrap"
         >
           + إضافة شخص
+        </button>
+
+        <button
+          onClick={onPrint}
+          className="rounded-lg border border-border px-3 py-2 text-sm whitespace-nowrap"
+        >
+          طباعة
         </button>
 
         <button

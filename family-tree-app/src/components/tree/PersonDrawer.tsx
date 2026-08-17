@@ -44,7 +44,7 @@ export function PersonDrawer({
   onAddRelative: (relation: Relation) => void;
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30 sm:bg-transparent sm:pointer-events-none" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-black/30 sm:bg-transparent sm:pointer-events-none print:hidden" onClick={onClose}>
       <aside
         className="h-full w-full sm:w-96 bg-surface shadow-xl overflow-y-auto pointer-events-auto flex flex-col"
         onClick={(e) => e.stopPropagation()}

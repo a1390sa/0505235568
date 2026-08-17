@@ -41,3 +41,27 @@ body {
   color: var(--foreground);
   font-family: "Segoe UI", Tahoma, Geneva, Arial, sans-serif;
 }
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 12mm;
+  }
+
+  /* Always print on a white page with dark ink, regardless of the
+     viewer's OS dark-mode setting. */
+  :root {
+    --background: #ffffff;
+    --surface: #ffffff;
+    --foreground: #1f2430;
+    --muted: #6b7280;
+    --border: #cbd5c8;
+    --primary: #0f766e;
+    --primary-foreground: #ffffff;
+    --accent: #b45309;
+  }
+
+  body {
+    background: #ffffff;
+  }
+}
