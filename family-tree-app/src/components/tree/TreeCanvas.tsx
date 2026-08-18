@@ -26,11 +26,33 @@ export const TreeCanvas = forwardRef<
   }
 >(function TreeCanvas({ layout, printPages, selectedPersonId, highlightedPersonId, onSelectPerson }, ref) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState({ x: 40, y: 40, scale: 0.85 });
-  const transformRef = useRef(transform);
+
+  // The authoritative transform during an active gesture. Updated on every
+  // pointermove by writing straight to the DOM (see applyLive) instead of
+  // going through React state, and only committed back into `transform`
+  // once the gesture ends. Driving continuous per-move updates through
+  // setTransform meant every touchmove event — which can fire dozens of
+  // times a second — forced React to re-reconcile every person card and
+  // edge on the canvas. Desktop shrugged that off, but it was enough to
+  // hang/crash the tab on mobile with a non-trivial tree, reproduced by
+  // the user with plain single-finger panning (no pinch needed).
+  const liveTransformRef = useRef(transform);
+
   useEffect(() => {
-    transformRef.current = transform;
+    liveTransformRef.current = transform;
+    if (contentRef.current) {
+      contentRef.current.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+    }
   }, [transform]);
+
+  const applyLive = useCallback((next: { x: number; y: number; scale: number }) => {
+    liveTransformRef.current = next;
+    if (contentRef.current) {
+      contentRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.scale})`;
+    }
+  }, []);
 
   const clampScale = (s: number) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s));
 
@@ -58,7 +80,7 @@ export const TreeCanvas = forwardRef<
 
   const beginGesture = useCallback(() => {
     const ids = [...pointers.current.keys()];
-    const t = transformRef.current;
+    const t = liveTransformRef.current;
     if (ids.length === 0) {
       gestureRef.current = null;
     } else if (ids.length === 1) {
@@ -127,7 +149,7 @@ export const TreeCanvas = forwardRef<
       if (e.pointerId !== gesture.pointerId) return;
       const dx = e.clientX - gesture.startX;
       const dy = e.clientY - gesture.startY;
-      setTransform((t) => ({ ...t, x: gesture.originX + dx, y: gesture.originY + dy }));
+      applyLive({ ...liveTransformRef.current, x: gesture.originX + dx, y: gesture.originY + dy });
       return;
     }
 
@@ -146,13 +168,17 @@ export const TreeCanvas = forwardRef<
     const worldY = (anchorY - gesture.originY) / gesture.startScale;
     const midX = (a.x + b.x) / 2 - rect.left;
     const midY = (a.y + b.y) / 2 - rect.top;
-    setTransform({ scale: nextScale, x: midX - worldX * nextScale, y: midY - worldY * nextScale });
-  }, []);
+    applyLive({ scale: nextScale, x: midX - worldX * nextScale, y: midY - worldY * nextScale });
+  }, [applyLive]);
 
   const onPointerUp = useCallback(
     (e: React.PointerEvent) => {
       pointers.current.delete(e.pointerId);
       beginGesture();
+      // Sync React state once the gesture fully ends, so imperative-handle
+      // methods (centerOnPerson, zoomIn/Out, reset) and the next render see
+      // the transform the DOM was actually left at.
+      if (pointers.current.size === 0) setTransform(liveTransformRef.current);
     },
     [beginGesture]
   );
@@ -209,6 +235,7 @@ export const TreeCanvas = forwardRef<
         </div>
       ) : (
         <div
+          ref={contentRef}
           dir="ltr"
           className="absolute top-0 left-0 origin-top-left print:hidden"
           style={{
