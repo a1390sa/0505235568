@@ -102,12 +102,29 @@ export function buildPatrilinealForest(
   }
   roots.sort((a, b) => createdAtMs(a) - createdAtMs(b));
 
-  function build(personId: string): PatriNode {
+  // Guards against bad data producing a non-tree shape — a cycle (however
+  // it got there), or a child recorded under two different male parents
+  // (e.g. "+ أب" clicked twice by mistake; the UI only caps a person at 2
+  // parents total, not one per gender). Without this, build() would recurse
+  // without bound on a cycle, or duplicate whole subtrees on a shared
+  // child — either way a slow, memory-hungry render that's especially
+  // liable to crash on mobile. Each person is placed at most once in the
+  // forest; whichever father reaches them first keeps them.
+  const placed = new Set<string>();
+  function build(personId: string): PatriNode | null {
+    if (placed.has(personId)) return null;
+    placed.add(personId);
     const childIds = childrenByFather.get(personId) ?? [];
-    return { person: personById.get(personId)!, children: childIds.map(build) };
+    const children = childIds.map(build).filter((n): n is PatriNode => n !== null);
+    return { person: personById.get(personId)!, children };
   }
 
-  return roots.map((r) => build(r.id));
+  const built: PatriNode[] = [];
+  for (const r of roots) {
+    const node = build(r.id);
+    if (node) built.push(node);
+  }
+  return built;
 }
 
 /** Lays out one or more patrilineal trees side by side, generation-per-row. */
